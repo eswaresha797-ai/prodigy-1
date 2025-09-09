@@ -1,0 +1,76 @@
+import cv2
+import mediapipe as mp
+
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+
+
+def classify_gesture(landmarks):
+    tips = [4, 8, 12, 16, 20]
+    pips = [3, 6, 10, 14, 18]
+
+    fingers = []
+
+    if landmarks[tips[0]].x < landmarks[pips[0]].x:
+        fingers.append(1)
+    else:
+        fingers.append(0)
+
+    for i in range(1, 5):
+        if landmarks[tips[i]].y < landmarks[pips[i]].y:
+            fingers.append(1)
+        else:
+            fingers.append(0)
+
+    total = sum(fingers)
+
+    if total == 0:
+        return "Closed Fist ✊"
+    elif total == 5:
+        return "Open Hand 🖐"
+    elif fingers == [1, 0, 0, 0, 0]:
+        return "Thumbs Up 👍"
+    elif fingers == [0, 1, 1, 0, 0]:
+        return "Peace ✌"
+    elif fingers == [0, 1, 0, 0, 0]:
+        return "Pointing 👉"
+    else:
+        return "Unknown"
+
+
+def main():
+    cap = cv2.VideoCapture(0)
+    hands = mp_hands.Hands(min_detection_confidence=0.6, min_tracking_confidence=0.6)
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = hands.process(image)
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+        label = ""
+
+        if results.multi_hand_landmarks:
+            for hand_landmarks in results.multi_hand_landmarks:
+                label = classify_gesture(hand_landmarks.landmark)
+                mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
+
+        cv2.putText(image, f"Gesture: {label}", (10, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        cv2.imshow("Hand Gesture Recognition (Press Q or Esc to quit)", image)
+
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord('q') or key == 27:
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+    hands.close()
+
+
+if _name_ == "_main_":
+    main()
